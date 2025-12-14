@@ -20,8 +20,8 @@ const MODE = process.env.MODE || "local";
 const PORT = Number(process.env.INTERFACE_PORT || 8080);
 const MUTIMAX_PATH = process.env.MUTIMAX_PATH || "./test-data";
 const LOG_PATH = process.env.LOG_PATH || "./logs";
-const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASS = process.env.ADMIN_PASS || "admin123";
+const ADMIN_USER = (process.env.ADMIN_USER || "admin").trim();
+const ADMIN_PASS = (process.env.ADMIN_PASS || "admin123").trim();
 const DOMAIN_TO_MONITOR = process.env.DOMAIN_TO_MONITOR || "http://localhost:3000";
 
 // Ensure required dirs
@@ -88,13 +88,15 @@ function requireAuth(req, res, next) {
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 app.post("/api/login", loginLimiter, (req, res) => {
   const { username, password } = req.body || {};
+  const u = (username || "").trim();
+  const p = (password || "");
   if (!username || !password) return res.status(400).json({ error: "missing_credentials" });
   if (MODE === "production" && password.length < 12) {
     return res.status(400).json({ error: "weak_password" });
   }
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
+  if (u === ADMIN_USER && p === ADMIN_PASS) {
     req.session.authenticated = true;
-    req.session.user = { username };
+    req.session.user = { username: u };
     const entry = `[login_success] user=${username} ip=${req.ip} ua=${req.headers["user-agent"] || ""}\n`;
     fs.appendFileSync(path.join(securityLogDir, "auth.log"), entry);
     return res.json({ ok: true });
@@ -142,6 +144,15 @@ app.use("/api/metrics", requireAuth, metricsRouter());
 app.ws("/ws/metrics", (ws, req) => metricsWs(ws, req));
 app.use("/api/site-status", requireAuth, siteStatusRouter({ DOMAIN_TO_MONITOR }));
 app.ws("/ws/site-status", (ws, req) => siteStatusWs(ws, req, { DOMAIN_TO_MONITOR }));
+
+// Env check (diagnóstico controlado, não expõe segredo)
+app.get("/api/env-check", (req, res) => {
+  res.json({
+    mode: MODE,
+    admin_user: ADMIN_USER,
+    admin_pass_len: ADMIN_PASS.length
+  });
+});
 
 // Static frontend under /manutencao
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
