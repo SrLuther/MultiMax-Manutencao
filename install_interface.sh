@@ -37,6 +37,11 @@ if [[ -n "$INPUT" ]]; then
       sudo apt-get update -y || true
       sudo apt-get install -y unzip || true
       unzip -o "$TMP_ZIP" -d "$PKG_DIR"
+      # Ajusta SRC_DIR para o diretório raiz do repo dentro do ZIP
+      FIRST_DIR="$(find "$PKG_DIR" -maxdepth 1 -mindepth 1 -type d | head -n 1 || true)"
+      if [[ -n "$FIRST_DIR" && -d "$FIRST_DIR/backend" && -d "$FIRST_DIR/frontend" && -d "$FIRST_DIR/systemd" ]]; then
+        SRC_DIR="$FIRST_DIR"
+      fi
     else
       echo "[!] URL não reconhecida. Use um .zip, .tar.gz ou URL de repositório GitHub."
       exit 1
@@ -66,7 +71,7 @@ fi
 
 echo "[*] Atualizando pacotes"
 sudo apt-get update -y
-sudo apt-get install -y curl gnupg ca-certificates lsb-release
+sudo apt-get install -y curl gnupg ca-certificates lsb-release build-essential python3 make g++
 
 echo "[*] Instalando Node.js"
 if ! command -v node >/dev/null 2>&1; then
@@ -87,6 +92,14 @@ sudo mkdir -p "$TARGET"
 sudo mkdir -p "$TARGET/logs/terminals" "$TARGET/logs/updates"
 
 echo "[*] Validando origem em $SRC_DIR"
+if [[ ! -d "$SRC_DIR/backend" || ! -d "$SRC_DIR/frontend" || ! -d "$SRC_DIR/systemd" ]]; then
+  # Tenta detectar estrutura dentro de subdiretório (ZIP do GitHub cria pasta raiz)
+  CANDIDATE="$(find "$SRC_DIR" -maxdepth 2 -type d -name backend 2>/dev/null | head -n 1 | xargs dirname || true)"
+  if [[ -n "$CANDIDATE" && -d "$CANDIDATE/backend" && -d "$CANDIDATE/frontend" && -d "$CANDIDATE/systemd" ]]; then
+    echo "[*] Detectada estrutura em subdiretório: $CANDIDATE"
+    SRC_DIR="$CANDIDATE"
+  fi
+fi
 if [[ ! -d "$SRC_DIR/backend" || ! -d "$SRC_DIR/frontend" || ! -d "$SRC_DIR/systemd" ]]; then
   echo "[!] Estrutura inválida do projeto. Esperado subpastas: backend, frontend, systemd"
   exit 1
@@ -118,6 +131,11 @@ echo "[*] Build do frontend"
 cd "$TARGET/frontend"
 sudo npm install
 sudo npm run build
+if [[ ! -f "$TARGET/frontend/dist/index.html" ]]; then
+  echo "[!] Build do frontend não gerou dist/index.html"
+  echo "[!] Verifique erros de build e dependências. Abortando."
+  exit 1
+fi
 
 echo "[*] Ajustando permissões"
 sudo chown -R www-data:www-data "$TARGET"
