@@ -5,14 +5,29 @@ export default function FilesManager() {
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
   const [content, setContent] = useState("");
+  const [error, setError] = useState("");
 
   async function load(p = path) {
+    setError("");
     const r = await fetch(`/api/files/list?p=${encodeURIComponent(p)}`, { credentials: "include" });
-    const d = await r.json();
-    setPath(d.path);
-    setItems(d.items);
-    setSelected(null);
-    setContent("");
+    if (!r.ok) {
+      try {
+        const e = await r.json();
+        setError(e?.error || "erro_listar");
+      } catch (_) {
+        setError("erro_listar");
+      }
+      return;
+    }
+    try {
+      const d = await r.json();
+      setPath(d.path);
+      setItems(d.items || []);
+      setSelected(null);
+      setContent("");
+    } catch (_) {
+      setError("erro_listar");
+    }
   }
 
   useEffect(() => {
@@ -56,6 +71,7 @@ export default function FilesManager() {
     <div className="grid grid-cols-3 gap-4">
       <div>
         <div className="mb-2 text-sm">Pasta: {path}</div>
+        {error && <div className="mb-2 text-red-500 text-sm">{error}</div>}
         <ul className="space-y-1">
           {path !== "." && (
             <li>
@@ -64,16 +80,20 @@ export default function FilesManager() {
               </button>
             </li>
           )}
-          {items.map((it) => (
-            <li key={it.name} className="flex items-center justify-between">
-              <button className="underline" onClick={() => open(it)}>
-                {it.isDir ? "📁" : "📄"} {it.name}
-              </button>
-              <button className="text-red-400" onClick={() => del(it)}>
-                excluir
-              </button>
-            </li>
-          ))}
+          {items.length === 0 ? (
+            <li className="text-slate-400">Pasta vazia</li>
+          ) : (
+            items.map((it) => (
+              <li key={it.name} className="flex items-center justify-between">
+                <button className="underline" onClick={() => open(it)}>
+                  {it.isDir ? "📁" : "📄"} {it.name}
+                </button>
+                <button className="text-red-400" onClick={() => del(it)}>
+                  excluir
+                </button>
+              </li>
+            ))
+          )}
         </ul>
       </div>
       <div className="col-span-2">

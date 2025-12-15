@@ -1,7 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Chart, LineController, LineElement, PointElement, LinearScale, TimeScale, Title, Tooltip, Legend } from "chart.js";
+import {
+  Chart,
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Title,
+  Tooltip,
+  Legend
+} from "chart.js";
 
-Chart.register(LineController, LineElement, PointElement, LinearScale, Title, Tooltip, Legend);
+Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Title, Tooltip, Legend);
 
 export default function MonitorCharts() {
   const cpuRef = useRef(null);

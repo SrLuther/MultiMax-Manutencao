@@ -51,7 +51,8 @@ function checkUrl(urlStr) {
     const client = isHttps ? https : http;
     const req = client
       .get(urlStr, (res) => {
-        resolve({ ok: res.statusCode === 200, status: res.statusCode });
+        const code = res.statusCode;
+        resolve({ ok: code >= 200 && code < 400, status: code });
         res.resume();
       })
       .on("error", () => resolve({ ok: false, status: 0 }));

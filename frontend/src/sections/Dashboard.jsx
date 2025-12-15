@@ -50,7 +50,33 @@ export default function Dashboard({ user, onLogout }) {
   }, []);
 
   async function action(type) {
-    await fetch(`/api/service/${type}`, { method: "POST", credentials: "include" });
+    let body = undefined;
+    let headers = undefined;
+    if (type === "stop") {
+      const confirmText = prompt(
+        "Parar o serviço em produção derruba os sites. Digite CONFIRMAR para continuar."
+      );
+      if (!confirmText || confirmText.toUpperCase().trim() !== "CONFIRMAR") {
+        alert("Parada cancelada");
+        return;
+      }
+      body = JSON.stringify({ confirm: confirmText });
+      headers = { "Content-Type": "application/json" };
+    }
+    const r = await fetch(`/api/service/${type}`, {
+      method: "POST",
+      credentials: "include",
+      headers,
+      body
+    });
+    let err = "";
+    try {
+      const d = await r.json();
+      if (!d?.ok) err = d?.error || d?.stderr || "";
+    } catch (_) {}
+    if (!r.ok || err) {
+      alert(`Falha ao ${type} serviço${err ? `: ${err}` : ""}`);
+    }
     fetchServiceStatus();
   }
 
@@ -118,18 +144,29 @@ export default function Dashboard({ user, onLogout }) {
                 Status do serviço: <StatusBadge status={serviceStatus} />
               </div>
               <div className="flex gap-2">
-                <button className="bg-green-600 px-3 py-1 rounded" onClick={() => action("start")}>
-                  Iniciar
-                </button>
-                <button className="bg-red-600 px-3 py-1 rounded" onClick={() => action("stop")}>
-                  Parar
-                </button>
-                <button
-                  className="bg-yellow-600 px-3 py-1 rounded"
-                  onClick={() => action("restart")}
-                >
-                  Reiniciar
-                </button>
+                {serviceStatus === "active" ? (
+                  <button
+                    className="bg-yellow-600 px-3 py-1 rounded"
+                    onClick={() => action("restart")}
+                  >
+                    Reiniciar
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="bg-green-600 px-3 py-1 rounded"
+                      onClick={() => action("start")}
+                    >
+                      Iniciar
+                    </button>
+                    <button
+                      className="bg-red-600 px-3 py-1 rounded"
+                      onClick={() => action("stop")}
+                    >
+                      Parar
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <div className="bg-slate-800 p-4 rounded">
@@ -137,7 +174,11 @@ export default function Dashboard({ user, onLogout }) {
               {siteStatus.ok ? (
                 <span className="bg-green-600 px-2 py-1 rounded text-xs">Online — HTTP 200 OK</span>
               ) : (
-                <span className="bg-red-600 px-2 py-1 rounded text-xs">Offline — Sem resposta</span>
+                <span className="bg-red-600 px-2 py-1 rounded text-xs">
+                  {siteStatus.status
+                    ? `Offline — HTTP ${siteStatus.status}`
+                    : "Offline — Sem resposta"}
+                </span>
               )}
             </div>
           </section>

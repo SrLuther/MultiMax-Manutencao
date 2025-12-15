@@ -57,6 +57,7 @@ export function filesRouter({ MODE, basePath }) {
     try {
       const p = req.query.p || ".";
       if (!useSftp) {
+        if (!fs.existsSync(basePath)) fs.mkdirSync(basePath, { recursive: true });
         const data = await listLocal(basePath, p);
         return res.json(data);
       } else {

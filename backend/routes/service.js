@@ -29,6 +29,12 @@ export function serviceRouter({ MODE, serviceName = "mutimax" }) {
 
   router.post("/stop", async (req, res) => {
     if (MODE === "local") return res.json({ ok: true, message: "stopped (simulado)" });
+    if (MODE === "production") {
+      const c = (req.body?.confirm || "").trim().toUpperCase();
+      if (c !== "CONFIRMAR") {
+        return res.status(400).json({ ok: false, error: "confirm_required" });
+      }
+    }
     const r = await run(`sudo systemctl stop ${serviceName}`);
     res.json({ ok: r.ok, stdout: r.stdout, stderr: r.stderr, error: r.error });
   });
